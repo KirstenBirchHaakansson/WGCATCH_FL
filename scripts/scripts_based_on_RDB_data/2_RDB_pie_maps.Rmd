@@ -1,0 +1,286 @@
+---
+title: "2_RDB_pie_maps"
+author: "Kirsten Birch Håkansson, DTU Aqua"
+date: \today
+output: pdf_document
+---
+
+Pie plots can be found in the output_path in the pie_maps function
+
+- a single map is shown in this PDF, but you can plot nearly everything - it just needs something with a UNLOCODE or ICES rectangle.
+
+By default the function plot be stock, but that could in principal be anything. 
+
+
+
+```{r setup, include = FALSE}
+
+library(RColorBrewer)
+library(dplyr)
+
+options(scripen = 500, digits = 5)
+
+dir_data <- "Q:/dfad/users/kibi/data/WGCATCH/"
+
+setwd("Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/scripts/scripts_based_on_RDB_data")
+
+source("pie_maps_function.R")
+
+geo_data_path <- "Q:/mynd/kibi/EverythingInOnePlace/shapeFiles"
+output_path  <- "Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/output/graphics/2_pie_maps/"
+
+knitr::opts_chunk$set(fig.width = 8, fig.height = 8, dpi = 900, dev = 'jpeg', results = 'asis')
+
+cl <- readRDS(paste(dir_data,"cl_2014_2017.rds", sep = ""))
+
+cl <- mutate(cl, tons = landWt/1000)
+
+cl_1 <- filter(cl, substr(area, 1, 2) == "27" & vslFlgCtry != "TS1")
+
+period <- "2014-2017"
+
+```
+
+
+```{r setup_colors, include = FALSE}
+#Setting factor to countries, fleet ...
+
+ctry_list = sort(unique(c(cl_1$vslFlgCtry,cl_1$landCtry)))
+for (i in c("vslFlgCtry","landCtry"))
+{
+  if (i %in% colnames(cl_1)) {cl_1[,i] <- factor(cl_1[,i], levels = ctry_list)} 
+}
+
+# fleet_list = sort(unique(c(cl_1$fleet)))
+# for (i in c("fleet"))
+# {
+#   if (i %in% colnames(cl_1)) {cl_1[,i] <- factor(cl_1[,i], levels = fleet_list)} 
+# }
+
+vslLenCat_list = sort(unique(c(cl_1$vslLenCat)))
+for (i in c("vslLenCat"))
+{
+  if (i %in% colnames(cl_1)) {cl_1[,i] <- factor(cl_1[,i], levels = vslLenCat_list)} 
+}
+
+#Setting colors per countries fleet
+ddc <- levels(as.factor(cl_1$vslFlgCtry))
+ddc.col <- c("#e6194B", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabebe", "#469990", "#e6beff", 
+          "#9A6324", "#fffac8", "#800000", "#aaffc3", "#808000", "#ffd8b1", "#000075", "#a9a9a9", "#ffffff", "#000000", "#00FF00", "#FF0000")
+names(ddc.col)  <- ddc
+
+ddf <- levels(as.factor(cl_1$fleet))
+ddf.col <- brewer.pal(length(ddf), "Paired")
+names(ddf.col)  <- ddf
+
+# dds <- levels(as.factor(cl_1$fleet))
+# dds.col <- brewer.pal(length(dds), "Paired")
+# names(dds.col)  <- dds
+
+dd_vslLenCat <- levels(as.factor(cl_1$vslLenCat))
+dd_vslLenCat.col <- brewer.pal(length(dd_vslLenCat), "Paired")
+names(dd_vslLenCat.col)  <- dd_vslLenCat
+```
+
+```{r example, echo = F, message = F}
+
+#knitr::include_graphics("Q:/mynd/RCM/2018/small_pelagic_baltic/graphics/5_pie_maps/20180907/her.27.28_landWt_fleet_harbour_2016.JPEG")
+
+
+```
+
+
+#Landings per vslFlgCtry and rect 
+
+```{r plotting, include = F}
+
+
+#Plotting DNK landings per rect and landing country - boarfish
+dnk <- filter(cl_1, stock == "boc.27.6-8")
+pie_maps(dnk, x = rect, y = landWt, by = vslFlgCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 100,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = c(-10, 10), ylim = c(50,65))
+
+dnk_1 <- mutate(dnk, time = period)
+pie_maps(dnk_1, x = rect, y = landWt, by = vslFlgCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 100,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+
+#Plotting DNK landings per rect and landing country - cod 
+dnk <- filter(cl_1, stock == "cod.27.24-32")
+pie_maps(dnk, x = rect, y = landWt, by = vslFlgCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_1 <- mutate(dnk, time = period)
+pie_maps(dnk_1, x = rect, y = landWt, by = vslFlgCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+#Plotting DNK landings per rect and landing country - mac
+
+dnk <- filter(cl_1, stock == "mac.27.nea")
+pie_maps(dnk, x = rect, y = landWt, by = vslFlgCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "manual", xlim = c(-10, 10), ylim = c(50,65))
+
+dnk_2 <- mutate(dnk, time = period)
+pie_maps(dnk_2, x = rect, y = landWt, by = vslFlgCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "manual", xlim = c(-10, 10), ylim = c(50,65))
+
+
+#Plotting DNK landings per rect and landing country - her.27.3a47d
+
+swe <- filter(cl_1, stock %in% c("her.27.3a47d", "her.27.20-24", "her.27.25-2932"))
+pie_maps(swe, x = rect, y = landWt, by = vslFlgCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+swe_2 <- mutate(swe, time = period)
+pie_maps(swe_2, x = rect, y = landWt, by = vslFlgCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+
+#Plotting DNK landings per rect and landing country - spr.27.2232
+
+swe <- filter(cl_1, stock == "spr.27.2232")
+pie_maps(swe, x = rect, y = landWt, by = vslFlgCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+swe_2 <- mutate(swe, time = period)
+pie_maps(swe_2, x = rect, y = landWt, by = vslFlgCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+
+#Plotting DNK landings per rect and landing country - spr.27.2232
+
+swe <- filter(cl_1, sppFAO == "SAN")
+pie_maps(swe, x = rect, y = landWt, by = vslFlgCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+swe_2 <- mutate(swe, time = period)
+pie_maps(swe_2, x = rect, y = landWt, by = vslFlgCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+```
+
+
+
+#Landings per landCtry and rect 
+
+```{r plotting_2, include = F}
+
+#Plotting DNK landings per rect and landing country - boarfish
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "boc.27.6-8")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, sep = ""))
+pie_maps(dnk_1, x = rect, y = landWt, by = landCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 100,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = rect, y = landWt, by = landCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 100,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+#Plotting DNK landings per rect and landing country - cod 
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "cod.27.24-32")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, sep = ""))
+pie_maps(dnk_1, x = rect, y = landWt, by = landCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = rect, y = landWt, by = landCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+
+#Plotting DNK landings per harbour and landing country - cod 
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "cod.27.24-32")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, sep = ""))
+pie_maps(dnk_1, x = harbour, y = landWt, by = area, time = year, type = "UNLOCODE", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = harbour, y = landWt, by = area, time = time, type = "UNLOCODE", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+
+#Plotting DNK landings per rect and landing country - her.27.3a47d
+
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "her.27.3a47d" & landCat == "HUC")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, sep = ""))
+pie_maps(dnk_1, x = rect, y = landWt, by = landCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = rect, y = landWt, by = landCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+#Plotting DNK landings per harbour and landing country - her
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "her.27.3a47d" & landCat == "HUC")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, sep = ""))
+pie_maps(dnk_1, x = harbour, y = landWt, by = area, time = year, type = "UNLOCODE", coulors = ddc.col, treshold = 95,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = harbour, y = landWt, by = area, time = time, type = "UNLOCODE", coulors = ddc.col, treshold = 95,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+
+#Plotting DNK landings per rect and landing country - mac
+
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "mac.27.nea")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, sep = ""))
+pie_maps(dnk_1, x = rect, y = landWt, by = landCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = rect, y = landWt, by = landCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+#Plotting DNK landings per harbour and landing country - her
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "mac.27.nea")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, sep = ""))
+pie_maps(dnk_1, x = harbour, y = landWt, by = area, time = year, type = "UNLOCODE", coulors = ddc.col, treshold = 95,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = harbour, y = landWt, by = area, time = time, type = "UNLOCODE", coulors = ddc.col, treshold = 95,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+#Plotting DNK landings per harbour and landing country - her - focus Norway
+dnk <- filter(cl_1, vslFlgCtry == "DNK" & stock == "mac.27.nea")
+dnk_1 <- mutate(dnk, stock = paste("DNK landings of ", stock, " into NOR", sep = ""))
+pie_maps(dnk_1, x = harbour, y = landWt, by = area, time = year, type = "UNLOCODE", coulors = ddc.col, treshold = 95,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "manual", xlim = c(4,8), ylim = c(59,64))
+
+dnk_2 <- mutate(dnk_1, time = period)
+pie_maps(dnk_2, x = harbour, y = landWt, by = area, time = time, type = "UNLOCODE", coulors = ddc.col, treshold = 95,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+#Plotting SWE landings per rect and landing country - her.27.3a47d
+
+swe <- filter(cl_1, vslFlgCtry == "SWE" & sppFAO == "HER")
+swe_1 <- mutate(swe, stock = paste("SWE landings of ", stock, sep = ""))
+pie_maps(swe_1, x = rect, y = landWt, by = landCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+swe_2 <- mutate(swe_1, time = period)
+pie_maps(swe_2, x = rect, y = landWt, by = landCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+
+#Plotting SWE landings per rect and landing country - spr.27.2232
+
+swe <- filter(cl_1, vslFlgCtry == "SWE" & stock == "spr.27.2232")
+swe_1 <- mutate(swe, stock = paste("SWE landings of ", stock, sep = ""))
+pie_maps(swe_1, x = rect, y = landWt, by = landCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+swe_2 <- mutate(swe_1, time = period)
+pie_maps(swe_2, x = rect, y = landWt, by = landCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+#Plotting SWE landings per rect and landing country - san
+
+swe <- filter(cl_1, vslFlgCtry == "SWE" & sppFAO == "SAN")
+swe_1 <- mutate(swe, stock = paste("SWE landings of ", stock, sep = ""))
+pie_maps(swe_1, x = rect, y = landWt, by = landCtry, time = year, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+
+swe_2 <- mutate(swe_1, time = period)
+pie_maps(swe_2, x = rect, y = landWt, by = landCtry, time = time, type = "rectangle", coulors = ddc.col, treshold = 97.5,
+                     geo_data_path =  geo_data_path, output_path = output_path, zoom = "auto", xlim = NULL, ylim = NULL)
+```

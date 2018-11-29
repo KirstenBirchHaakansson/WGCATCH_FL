@@ -1,0 +1,153 @@
+---
+title: "1_RDB_read_rename_add_filter"
+author: "Kirsten Birch H?kansson, DTU Aqua"
+date: \today
+output: pdf_document
+urlcolor: blue
+---
+
+
+#Data
+
+This script reads in data from the RDB, renames the field names to the ones in the COST format, adds needed variables like e.g. stock.
+
+All data have been downloded from the WGCATCH 2018 share point.
+
+[WGCATCH/Data, 2018](https://community.ices.dk/ExpertGroups/wgcatch/_layouts/15/start.aspx#/SitePages/HomePage.aspx?RootFolder=%2FExpertGroups%2Fwgcatch%2F2018%20Meeting%20Docs%2F06%2E%20Data&FolderCTID=0x012000F0F0165DB8F1944784C430E4CD7C19DD&View=%7BB685D383%2DBA94%2D42D7%2D8449%2DAD26CAAF8919%7D)
+
+Downloaded: CE 25/10/2018; CL 02/11/2018
+
+```{r setup, include = F}
+data_in <- "Q:/dfad/users/kibi/data/WGCATCH/from_share_point/"
+data_out <- "Q:/dfad/users/kibi/data/WGCATCH/"
+
+setwd("Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/scripts/scripts_based_on_RDB_data")
+
+library(data.table)
+library(lubridate)
+library(dplyr)
+library(fishPiCodes)
+library(knitr)
+
+source("GetStock_v1_1.R") #if sppFAO is.na then the lines are deleted
+
+```
+
+
+```{r read in data, include = F}
+
+#cl ----
+cl <- read.csv(paste(data_in, "2018 11 01 CL data for WGCATCH 17 species.csv", sep = ""), header = T, na.strings = "NULL",
+             col.names = c("landCtry","vslFlgCtry","year","quarter","month","area",
+                           "rect","sppName","sppNameEng","sppCode","landCat","commCatScl",
+                           "commCat","foCatEu5","foCatEu6","harbour",
+                           "misRepCatchWt","landWt","landMult","landValue","stock"),
+             colClasses = c("character","character","integer","integer","integer","character",
+                            "character","character","character","character","character","character"
+                            ,"character","character","character","character",
+                            "numeric","numeric","numeric","numeric","character"))
+
+
+head(cl)
+str(cl)
+
+cl <- mutate(cl, subdivision = substr(area, 4, 9))
+
+
+#ce ----
+ce <- read.csv(paste(data_in, "2018 10 25 CE data for WGCATCH.csv", sep = ""), header = T, na.strings = "NULL",
+               col.names = c("vslFlgCtry","year","quarter","month","area","rect","foCatNat","foCatEu5","foCatEu6","harbour",
+                             "vslLenCat","trpNum","foNum",
+                             "foDur","effKwDays","effGtDays","daysAtSea"),
+               colClasses = c("character","integer","integer","integer","character","character","character","character",
+                              "character","character","character",
+                              "integer","integer","integer","integer","integer","integer"))
+
+head(ce)
+str(ce)
+
+ce <- mutate(ce, subdivision = substr(area, 4, 9))
+
+```
+
+#Added stock
+
+I'm not using the stock from the RDB, since it is not updated. I'm using the function (GetStock) develop for fishPi2.
+
+I have used area to deduce stock. 
+
+*I have not looked at all the species* - so far only sprat, herring, baltic cod, mackerel, boarfish, sandeel
+
+##Landings of herring from area 27.7.a
+
+Not able to distinguish between stocks for herring in 27.7.a (27.7.a.n going to her.27.nirs and 27.7.a.s going to her.27.irls), since these are not part of the case studies, then this is left as it is. 
+
+##Lanings of herring from area 27.3.d.28
+I have used area to deduce stock. In WKPELA (2018), her.27.2024, we ended up first using rectangle to deduce area and then afterwards stock for some countries, which was confirmed to be the practise in these countries. I have not tried the same here, so maybe the figures do not match the figures submitted to the assessment working groups.
+
+*Keep that in mind*
+
+Area 27.28 causes some problems, since the landings are not always split between 27.28.1 and 27.28.2 in all years. In an attempt to fix that I'm assuming that all other countries than Estonia and Latvia are fishing in 27.28.2. Estonia and Latvia have only devided their landings in 27.28.1 and 27.28.2 in the last couple of years and are fishing in both parts. This has be solved by putting all their landings from area 27.28 into area 27.28.1, which gives figures very similar to the ones in the advice for her.27.28 in these years. But again the figures do not match well for Latvis in 2015 and 2016 where the landings have been split.....
+
+```{r add stock, echo = F, message = F, warning = F}
+#Add sppFAO - this is needed for the stock function
+data(ASFIS)
+
+FAO <- distinct(ASFIS, X3A_CODE, Scientific_name)
+FAO <- rename(FAO, sppFAO = X3A_CODE, sppName = Scientific_name)
+FAO$sppFAO <- as.character(FAO$sppFAO)
+
+cl <- left_join(cl, FAO)
+
+test_cl <- filter(cl, substr(sppName, 1, 3) == "Amm")
+summ_cl <- summarise(group_by(test_cl, year, sppName, sppFAO), kg = sum(landWt/1000))
+
+cl_1 <- mutate(cl, sppFAO = ifelse(sppName %in% c("Ammodytes tobianus", "Ammodytidae", "Ammodytes"), "SAN", 
+                                   ifelse(sppName == "Caproidae", "BOC", sppFAO)), 
+               area = ifelse(substr(area, 8, 9) == "28" & sppName %in% c("Clupea harengus") & !(vslFlgCtry %in% c("EST","LVA")), "27.3.d.28.2",
+                               ifelse(substr(area, 8, 9) == "28" & sppName %in% c("Clupea harengus") & vslFlgCtry %in% c("LVA") & year < 2015, 
+                                      "27.3.d.28.1", 
+                                      ifelse(substr(area, 8, 9) == "28" & sppName %in% c("Clupea harengus") & vslFlgCtry %in% c("EST") & year < 2016, 
+                                      "27.3.d.28.1", area))))
+cl_2 <- GetStock(cl_1)
+
+test_cl_2 <- filter(cl_2, substr(sppName, 1, 3) == "Amm")
+summ_cl_2 <- summarise(group_by(test_cl_2, year, sppName, sppFAO, stock), kg = sum(landWt/1000))
+
+#Fixed area 28
+
+cl_2 <- mutate(cl_2, stock = ifelse(sppName == "Gadus morhua" & substr(area, 8, 9) == "28", "cod.27.24-32", 
+                                    ifelse(sppName == "Clupea harengus" & substr(area, 1, 6) == "27.6.a", "her.27.6a7bc", 
+                                           ifelse(sppName == "Sprattus sprattus" & substr(area, 8, 9) == "28", "spr.27.2232", stock))))
+
+no_stock <- summarise(group_by(filter(filter(cl_2, year >= 2014), stock == "no.defined.stock"), sppName, sppFAO, area), landWt_ton = sum(landWt/1000))
+
+kable(as.data.frame(no_stock), caption = "landings (ton) with no stock after the corrections, 2014-2017")
+kable(summarise(group_by(cl_2, sppName, area, stock, year), landWt_ton = sum(landWt/1000)))
+```
+
+```{r output data, include = F}
+
+
+saveRDS(cl_2,paste(data_out,"cl_all.rds", sep = ""))
+
+saveRDS(filter(cl_2, year >= 2014), paste(data_out,"cl_2014_2017.rds", sep = ""))
+
+# saveRDS(filter(cl, sppName %in% c("Sprattus sprattus", "Clupea harengus") & landCat != "BMS" & stock != "no.defined.stock" & year > 2013 & 
+#                  year < 2017), paste(data_out,"cl_bs_pel_2014_2016.rds", sep = ""))
+
+saveRDS(ce,paste(data_out,"ce_all.rds", sep = ""))
+
+
+# saveRDS(tr,paste(data_out,"tr_bs.rds", sep = ""))
+# 
+# 
+# saveRDS(hh,paste(data_out,"hh_bs.rds", sep = ""))
+# 
+# 
+# saveRDS(sl,paste(data_out,"sl_bs.rds", sep = ""))
+# 
+# 
+# saveRDS(ca,paste(data_out,"ca_bs.rds", sep = ""))
+# saveRDS(filter(ca, sppName %in% c("Sprattus sprattus", "Clupea harengus")), paste(data_out,"ca_bs_cod.rds", sep = ""))
+```

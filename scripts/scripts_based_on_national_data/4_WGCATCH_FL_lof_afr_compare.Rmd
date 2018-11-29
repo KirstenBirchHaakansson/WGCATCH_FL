@@ -1,0 +1,276 @@
+
+---
+title: "4_WGCATCH_FL_log_afr_compare_overall"
+author: "Kirsten Birch Håkansson, DTU Aqua"
+date: \today
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(RColorBrewer)
+require(gridExtra)
+library(tidyr)
+
+opts_chunk$set(tidy.opts = list(width.cutoff = 80),tidy = TRUE)
+options(scipen = 500, digits = 5)
+
+
+dir_data <- "Q:/dfad/users/kibi/data/WGCATCH/"
+
+setwd("Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/scripts/scripts_based_on_national_data")
+
+dir_fig <- "Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/output/graphics/4_fl_compare_log_afr/"
+
+knitr::opts_chunk$set(fig.width = 12, fig.height = 12, fig.path = dir_fig, dpi = 900, dev = 'jpeg', results = 'asis', echo = F, warning = F)
+
+```
+
+#Data
+
+Only including records where hel or fangst > 0
+
+```{r read_data}
+afr <- filter(readRDS(paste(dir_data, "WGCATCH_FL_afr_input.rds", sep = "")), hel > 0)
+log <- filter(readRDS(paste(dir_data, "WGCATCH_FL_log_input.rds", sep = "")), fangst > 0)
+
+
+afr_all <- readRDS(paste(dir_data, "WGCATCH_FL_afr_input_all_spp.rds", sep = ""))
+log_all <- readRDS(paste(dir_data, "WGCATCH_FL_log_input_all_spp.rds", sep = ""))
+```
+
+#Landings into DNK per species
+
+nationl = "DNK"
+```{r}
+afr_1 <- filter(afr, nationl == "DNK")
+afr_sum <- summarise(group_by(afr_1, fnat, nationl, stock, year), tons_sales = sum(hel/1000), 
+                         no_trips_sales = length(unique(paste(fid, ldato))), 
+                         no_vessels_sales = length(unique(fid)))
+
+log_1 <- filter(log, nationl == "DNK")
+log_sum <- summarise(group_by(log_1, fnat, nationl, stock, year), tons_log = sum(fangst/1000), no_trips_log = length(unique(paste(fid, ankdato, afsdato))), 
+                         no_vessels_log = length(unique(fid)))
+
+compare_spp <- full_join(afr_sum, log_sum)
+
+write.csv(compare_spp, "Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/output/WGCATCH_FL_log_afr_into_DNK_data.csv" , row.names = F)
+
+```
+
+```{r, plot_into_DNK}
+
+afr_sum <- summarise(group_by(afr_1, fnat, nationl, wormsLatin), tons = sum(hel/1000), 
+                         no_trips = length(unique(paste(fid, ldato))), no_vessels = length(unique(fid)))
+
+compare_spp_into_DNK_afr <- mutate(gather(afr_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl), source = "Sales")
+
+log_sum <- summarise(group_by(log_1, fnat, nationl, wormsLatin), tons = sum(fangst/1000), no_trips = length(unique(paste(fid, ankdato, afsdato))), 
+                         no_vessels = length(unique(fid)))
+compare_spp_into_DNK_log <- mutate(gather(log_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl), source = "Logbooks")
+
+compare_spp_into_DNK <- bind_rows(compare_spp_into_DNK_afr, compare_spp_into_DNK_log)
+
+compare_spp_into_DNK$source = as.factor(compare_spp_into_DNK$source)
+
+ddf <- levels(as.factor(compare_spp_into_DNK$source))
+ddf.col <- brewer.pal(length(ddf), "Paired")
+names(ddf.col)  <- ddf
+
+spp_fac <- factor(compare_spp_into_DNK$wormsLatin)
+
+for (fac in levels(spp_fac)) {
+  
+  dat_plot <- compare_spp_into_DNK[fac == spp_fac, ]
+
+  p <- ggplot(dat_plot, aes(x = fnat, y = value, fill = source)) + 
+        geom_bar(stat = "identity", position = "dodge") + 
+        facet_wrap(~measurement, scales = "free") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0), legend.position = "bottom") +
+        scale_fill_manual(values = ddf.col) +
+        labs(title = paste("Completeness of data sources: Landings of ", fac, " into Denmark per flag country, 2014-2017", sep = ""), x = "Flag country", y = "")
+  
+  plot(p)
+  cat('\n\n')
+}
+```
+
+
+#Foreign vessels Landing into DNK
+
+```{r, plot_into_DNK_f_all}
+
+afr_1 <- filter(afr_all, nationl == "DNK" & fnat != "DNK")
+
+afr_sum <- summarise(group_by(afr_1, fnat, nationl, wormsLatin), tons = sum(hel/1000), 
+                         no_trips = length(unique(paste(fid, ldato))), no_vessels = length(unique(fid)))
+
+compare_spp_into_DNK_afr <- mutate(gather(afr_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl), source = "Sales")
+
+log_1 <- filter(log_all, nationl == "DNK" & fnat != "DNK")
+
+log_sum <- summarise(group_by(log_1, fnat, nationl, wormsLatin), tons = sum(fangst/1000), no_trips = length(unique(paste(fid, ankdato, afsdato))), 
+                         no_vessels = length(unique(fid)))
+compare_spp_into_DNK_log <- mutate(gather(log_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl), source = "Logbooks")
+
+compare_spp_into_DNK <- bind_rows(compare_spp_into_DNK_afr, compare_spp_into_DNK_log)
+
+compare_spp_into_DNK$source = as.factor(compare_spp_into_DNK$source)
+
+ddf <- levels(as.factor(compare_spp_into_DNK$source))
+ddf.col <- brewer.pal(length(ddf), "Paired")
+names(ddf.col)  <- ddf
+
+p <- ggplot(compare_spp_into_DNK, aes(x = fnat, y = value, fill = source)) + 
+        geom_bar(stat = "identity", position = "dodge") + 
+        facet_wrap(~measurement, scales = "free") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0), legend.position = "bottom") +
+        scale_fill_manual(values = ddf.col) +
+        labs(title = paste("Completeness of data sources: Landings of all species by foreign vessels into Denmark per flag country, 2014-2017", sep = ""), x = "Flag country", y = "")
+  
+plot(p)
+```
+#Foreign vessels Landing into DNK per species
+
+```{r, plot_into_DNK_f_spp}
+
+afr_1 <- filter(afr, nationl == "DNK" & fnat != "DNK")
+
+afr_sum <- summarise(group_by(afr_1, fnat, nationl, wormsLatin), tons = sum(hel/1000), 
+                         no_trips = length(unique(paste(fid, ldato))), no_vessels = length(unique(fid)))
+
+compare_spp_into_DNK_afr <- mutate(gather(afr_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl), source = "Sales")
+
+log_1 <- filter(log, nationl == "DNK" & fnat != "DNK")
+
+log_sum <- summarise(group_by(log_1, fnat, nationl, wormsLatin), tons = sum(fangst/1000), no_trips = length(unique(paste(fid, ankdato, afsdato))), 
+                         no_vessels = length(unique(fid)))
+compare_spp_into_DNK_log <- mutate(gather(log_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl), source = "Logbooks")
+
+compare_spp_into_DNK <- bind_rows(compare_spp_into_DNK_afr, compare_spp_into_DNK_log)
+
+compare_spp_into_DNK$source = as.factor(compare_spp_into_DNK$source)
+
+ddf <- levels(as.factor(compare_spp_into_DNK$source))
+ddf.col <- brewer.pal(length(ddf), "Paired")
+names(ddf.col)  <- ddf
+
+spp_fac <- factor(compare_spp_into_DNK$wormsLatin)
+
+for (fac in levels(spp_fac)) {
+  
+  dat_plot <- compare_spp_into_DNK[fac == spp_fac, ]
+
+  p <- ggplot(dat_plot, aes(x = fnat, y = value, fill = source)) + 
+        geom_bar(stat = "identity", position = "dodge") + 
+        facet_wrap(~measurement, scales = "free") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0), legend.position = "bottom") +
+        scale_fill_manual(values = ddf.col) +
+        labs(title = paste("Completeness of data sources: Landings of ", fac, " by foreign vessels into Denmark per flag country, 2014-2017", sep = ""), x = "Flag country", y = "")
+  
+  plot(p)
+  cat('\n\n')
+}
+```
+
+#Landings from Danish vessels per landing country
+
+```{r, plot_dnk}
+
+afr_1 <- filter(afr, fnat == "DNK")
+
+afr_sum <- summarise(group_by(afr_1, fnat, nationl, wormsLatin, year), tons = sum(hel/1000), 
+                         no_trips = length(unique(paste(fid, ldato))), no_vessels = length(unique(fid)))
+
+compare_spp_into_DNK_afr <- mutate(gather(afr_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl, -year), source = "Sales")
+
+log_1 <- filter(log, fnat == "DNK")
+
+log_sum <- summarise(group_by(log_1, fnat, nationl, wormsLatin, year), tons = sum(fangst/1000), no_trips = length(unique(paste(fid, ankdato, afsdato))), 
+                         no_vessels = length(unique(fid)))
+compare_spp_into_DNK_log <- mutate(gather(log_sum, key = measurement, value = value, -fnat, -wormsLatin, -nationl, -year), source = "Logbooks")
+
+compare_spp_into_DNK <- bind_rows(compare_spp_into_DNK_afr, compare_spp_into_DNK_log)
+
+compare_spp_into_DNK$source = as.factor(compare_spp_into_DNK$source)
+
+ddf <- levels(as.factor(compare_spp_into_DNK$source))
+ddf.col <- brewer.pal(length(ddf), "Paired")
+names(ddf.col)  <- ddf
+
+spp_fac <- factor(compare_spp_into_DNK$wormsLatin)
+
+for (fac in levels(spp_fac)) {
+  
+  dat_plot <- compare_spp_into_DNK[fac == spp_fac, ]
+
+  p <- ggplot(dat_plot, aes(x = nationl, y = value, fill = source)) + 
+        geom_bar(stat = "identity", position = "dodge") + 
+        facet_wrap(~measurement, scales = "free") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0), legend.position = "bottom") +
+        scale_fill_manual(values = ddf.col) +
+        labs(title = paste("Completeness of data sources: Landings of ", fac, " by Danish vessels per landing country, 2014-2017", sep = ""), x = "Landing country", y = "")
+  
+  plot(p)
+  cat('\n\n')
+}
+
+
+for (fac in levels(spp_fac)) {
+  
+  dat_plot <- compare_spp_into_DNK[fac == spp_fac, ]
+
+  p <- ggplot(dat_plot, aes(x = nationl, y = value, fill = source)) + 
+        geom_bar(stat = "identity", position = "dodge") + 
+        facet_grid(measurement~year, scales = "free") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0), legend.position = "bottom") +
+        scale_fill_manual(values = ddf.col) + 
+        labs(title = paste("Completeness of data sources: Landings of ", fac, " by Danish vessels per landing country and year, 2014-2017", sep = ""), x = "Landing country", y = "")
+  
+  plot(p)
+  cat('\n\n')
+}
+```
+
+##Examples
+
+```{r, echo = T, warning = F}
+
+log_spr_nld <- filter(log, sppFAO == "SPR" & nationl == "NLD" & year == 2015)
+
+sum(log_spr_nld$fangst)
+
+unique(log_spr_nld$logbldnr)
+
+afr_spr_nld <- filter(afr_all, lbnr %in% unique(log_spr_nld$logbldnr))
+
+kable(summarise(group_by(afr_spr_nld, lbnr, nationl, sppFAO), tons = sum(hel)))
+
+
+log_whb_fro <- filter(log, sppFAO == "WHB" & nationl == "FRO" & year == 2015)
+
+sum(log_whb_fro$fangst)
+
+unique(log_whb_fro$logbldnr)
+
+afr_whb_fro <- filter(afr_all, lbnr %in% unique(log_whb_fro$logbldnr))
+
+kable(summarise(group_by(afr_whb_fro, lbnr, nationl, sppFAO), tons = sum(hel)))
+
+
+log_whb_nor <- filter(log, sppFAO == "WHB" & nationl == "NOR" & year == 2017)
+
+sum(log_whb_nor$fangst)
+
+unique(log_whb_nor$logbldnr)
+
+afr_whb_nor <- filter(afr_all, lbnr %in% unique(log_whb_nor$logbldnr))
+
+kable(summarise(group_by(afr_whb_nor, lbnr, nationl, sppFAO), tons = sum(hel)))
+
+```
+

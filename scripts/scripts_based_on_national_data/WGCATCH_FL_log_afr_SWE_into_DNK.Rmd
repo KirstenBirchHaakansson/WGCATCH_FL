@@ -1,0 +1,76 @@
+---
+title: "WGCATCH - FL - Swedish landings into Denmark, \n logbooks and sale slips available in Denmark, 2014-2016 "
+author: "Kristen Birch Håkansson, DTU Aqua"
+date: \today
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+library(dplyr)
+library(lubridate)
+library(knitr)
+
+options(scipen = 999)
+
+dir_in <- "Q:/dfad/users/kibi/data/WGCATCH/"
+
+afr <- readRDS(paste(dir_in, "WGCATCH_FL_afr_input.rds", sep = ""))
+
+#Only selecting Swedish vessels landing into DNK - and the small list of species
+afr_swe <- filter(afr, fnat == "SWE" & nationl == "DNK" & sppFAO %in% c("SAN", "HER", "SPR"))
+
+log <- readRDS(paste(dir_in, "WGCATCH_FL_log_input.rds", sep = ""))
+log_swe <- filter(log, fnat == "SWE" & nationl == "DNK" & sppFAO %in% c("SAN", "HER", "SPR"))
+
+```
+
+#Data
+Logbooks and sale slips available in Denmark for Swedish vessels landing in Denmark, 2014-2016
+
+ICES rectanlge is need when assigning a sandeel stock. Since we don't have ICES rect in the sale slips then all landings from area 27.4 and 27.3.a are assinged a pseudo stock - san.27.3a4.
+
+no_trips_log - unique combinations of vesselidentifier, departure and arrival date
+
+no_trips_sales - unique combination of vesselidentifier and landing date
+
+##Data issues
+
+```{r, echo = F}
+kable(summarise(group_by(afr_swe, sppFAO, area, fvd, stock), tons_sales = sum(hel/1000)), caption = "Sale slips. stock not assinged to sandeel landings due to the lack of ICES rectable in the sale slips. A couple of landing do not have info about area (fvd = -1, logbook unknown)")
+kable(summarise(group_by(log_swe, sppFAO, fvd, area, stock), tons_log = sum(fangst/1000)), caption = "logbooks. A couple of landing do not have info about area (fvd = -1, logbook unknown)")
+```
+
+#Creating the final table
+
+WGCATCH_FL_log_afr_SWE_into_DNK_data.csv
+
+```{r, include = F, , results = "asis"}
+
+#Logbook data
+log_1 <- filter(log_swe, stock %in% c("spr.27.2232", "her.27.20-24", "her.27.3a47d", "her.27.25-2932") | sppFAO == "SAN")
+
+log_1_stock <- summarise(group_by(log_1, year, stock), tons_log = sum(fangst/1000), no_trips_log = length(unique(paste(fid, ankdato, afsdato))), 
+                         no_vessels_log = length(unique(fid)))
+
+log_1_san <- summarise(group_by(mutate(filter(log_1, sppFAO == "SAN"), stock = "san.27.3a4"), year, stock), tons_log = sum(fangst/1000), 
+                                no_trips_log = length(unique(paste(fid, ankdato, afsdato))), no_vessels_log = length(unique(fid)))
+
+log_final <- bind_rows(log_1_san ,log_1_stock)
+
+afr_1 <- filter(afr_swe, stock %in% c("spr.27.2232", "her.27.20-24", "her.27.3a47d", "her.27.25-2932") | sppFAO == "SAN")
+
+afr_1_stock <- summarise(group_by(filter(afr_1, sppFAO != "SAN"), year, stock), tons_sales = sum(hel/1000), 
+                         no_trips_sales = length(unique(paste(fid, ldato))), 
+                         no_vessels_sales = length(unique(fid)))
+
+afr_1_san <- summarise(group_by(mutate(filter(afr_1, sppFAO == "SAN"), stock = "san.27.3a4"), year, stock), tons_sales = sum(hel/1000), 
+                         no_trips_sales = length(unique(paste(fid, ldato))), 
+                         no_vessels_sales = length(unique(fid)))
+
+afr_final <- bind_rows(afr_1_san, afr_1_stock)
+
+final <- full_join(log_final, afr_final)
+
+write.csv(final, "Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/output/WGCATCH_FL_log_afr_SWE_into_DNK_data.csv" , row.names = F)
+```

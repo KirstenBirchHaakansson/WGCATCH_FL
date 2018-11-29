@@ -1,0 +1,127 @@
+---
+title: "6_BS_pelagic_relative_barplots"
+author: "Kirsten Birch H?kansson, DTU Aqua"
+date: \today
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(RColorBrewer)
+require(gridExtra)
+
+opts_chunk$set(tidy.opts = list(width.cutoff = 80),tidy = TRUE)
+options(scripen = 500, digits = 5)
+
+options(scripen = 500, digits = 5)
+
+dir_data <- "Q:/dfad/users/kibi/data/WGCATCH/"
+
+setwd("Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/scripts/scripts_based_on_RDB_data")
+
+source("relative_barplot_wrap_function.R")
+dir_fig <- "Q:/mynd/WG/WGCATCH/2018/WGCATCH_FL/output/graphics/3_relative_barplot/cod_dnk_pol/"
+
+knitr::opts_chunk$set(fig.width = 8, fig.height = 8, fig.path = dir_fig, dpi = 900, dev = 'jpeg', results = 'asis')
+
+```
+
+```{r get_data, include = F}
+
+cl <- readRDS(paste(dir_data,"cl_2014_2017.rds", sep = ""))
+
+cl <- mutate(cl, tons = landWt/1000)
+
+cl_1 <- filter(cl, substr(area, 1, 2) == "27" & vslFlgCtry == "DNK" & sppFAO %in% c("HER", "MAC", "BOC", "COD"))
+
+cl_2 <- filter(cl_1, landCtry %in% c("DNK", "POL") & stock == "cod.27.24-32")
+
+period <- "2014-2017"
+```
+
+```{r, include = F}
+
+year_fac <- factor(cl_2$year)
+stock_fac <- factor(cl_2$stock)
+
+stock_fac_year <- factor(factor(cl_2$stock):factor(cl_2$year))
+
+```
+
+
+#Harbours - overall
+```{r harbour_overall, echo = F, warnings = F, message = F}
+
+#Per stock - all years
+
+for (i in levels(stock_fac)) {
+  
+   cl_plot <- cl_2[stock_fac == i,]
+   
+   title <- paste("Relative landings of ", i, " by landing country and harbour, ", period, sep = "")
+   plot_har_year <- relative_barplot_wrap(cl_plot, wrap = year, x = landCtry, y = tons, z = harbour, title = title)
+   print(plot_har_year)
+   cat("\n\\newpage\n")
+   
+}
+
+```
+
+
+#Harbour - quarter year
+```{r harbour, echo = F, warnings = F, message = F}
+
+#Per stock - all years
+
+for (i in levels(stock_fac)) {
+  
+   cl_plot <- cl_2[stock_fac == i,]
+   
+   title <- paste("Relative landings of ", i, " by landing country and quarter, ", period, sep = "")
+   plot_har_year <- relative_barplot_wrap(cl_plot, wrap = year, x = landCtry, y = tons, z = quarter, title = title)
+   print(plot_har_year)
+   cat("\n\\newpage\n")
+   
+}
+
+```
+
+
+
+#Metiers
+```{r foCatEu6, echo = F, warnings = F, message = F}
+
+#Per stock - all years
+
+for (i in levels(stock_fac)) {
+  
+   cl_plot <- cl_2[stock_fac == i,]
+   
+   title <- paste("Relative landings of ", i, " by landing country and metier, ", period, sep = "")
+   plot_har_year <- relative_barplot_wrap(cl_plot, wrap = year, x = landCtry, y = tons, z = foCatEu6, title = title)
+   print(plot_har_year)
+   cat("\n\\newpage\n")
+   
+}
+```
+
+```{r}
+
+
+
+for (i in levels(stock_fac)) {
+  
+   cl_plot <- cl_2[stock_fac == i,]
+   
+   title <- paste("Relative landings of ", i, " by landing country and area, ", period, sep = "")
+   plot_har_year <- relative_barplot_wrap(cl_plot, wrap = year, x = landCtry, y = tons, z = area, title = title)
+   print(plot_har_year)
+   cat("\n\\newpage\n")
+   
+}
+```
+
